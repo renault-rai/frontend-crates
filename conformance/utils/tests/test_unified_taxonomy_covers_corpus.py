@@ -784,16 +784,6 @@ def test_unified_case_counts_match_the_generator():
             "deepseek_v4": 114,
             "deepseek_v41": 113,
             "gemma4": 115,
-<<<<<<< HEAD
-            "glm47": 116,
-            "kimi_k2": 113,
-            "kimi_k3": 121,
-            "muse_glimmer": 117,
-            "qwen3": 114,
-        }[fam]
-        assert per_family[fam] == family_specific, f"{fam} diverged from the expected case count"
-    assert sum(per_family.values()) == 923
-=======
             "glm47": 120,
             "kimi_k2": 113,
             "kimi_k3": 121,
@@ -802,18 +792,13 @@ def test_unified_case_counts_match_the_generator():
         }[fam]
         assert per_family[fam] == family_specific, f"{fam} diverged from the expected case count"
     assert sum(per_family.values()) == 938
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
 
 
 def test_deferred_case_ids_are_not_in_the_active_taxonomy():
     deferred = {"1-2", "5-5", "6-2", "30-14", "32-6", "50-1", "50-2"} | {
         f"31-{number}" for number in range(31, 41)
     }
-<<<<<<< HEAD
-    assert len(UNIFIED_TAX) == 132
-=======
     assert len(UNIFIED_TAX) == 148
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
     assert not {f"UNIFIED.{case_id}" for case_id in deferred} & {
         numbered_id(scenario) for scenario in UNIFIED_TAX
     }
@@ -1148,8 +1133,7 @@ def _json_values(raw):
     return values
 
 
-<<<<<<< HEAD
-def _parse_gemma_value(raw, index=0):
+def _parse_gemma_value(raw, index=0, *, exact_numbers=False):
     while index < len(raw) and raw[index].isspace():
         index += 1
     if raw.startswith('<|"|>', index):
@@ -1172,20 +1156,17 @@ def _parse_gemma_value(raw, index=0):
                 assert key is not None, ("invalid Gemma object key", raw[index:])
                 index += key.end()
                 assert index < len(raw) and raw[index] == ":", ("missing Gemma key separator", raw)
-                value, index = _parse_gemma_value(raw, index + 1)
+                value, index = _parse_gemma_value(raw, index + 1, exact_numbers=exact_numbers)
                 values[key[0]] = value
             else:
-                value, index = _parse_gemma_value(raw, index)
+                value, index = _parse_gemma_value(raw, index, exact_numbers=exact_numbers)
                 values.append(value)
     token = re.match(r"(?:true|false|null|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", raw[index:])
     assert token is not None, ("unsupported Gemma value", raw[index:])
-    return json.loads(token[0]), index + token.end()
+    return json.loads(token[0], parse_float=Decimal if exact_numbers else float), index + token.end()
 
 
-def _native_input_calls(family, raw):
-=======
 def _native_input_calls(family, raw, *, exact_numbers=False):
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
     """Read authored complete argument fields, not runtime recovery decisions.
 
     This fixture-only projection ignores invoke EOF policy: a syntactically present
@@ -1255,15 +1236,7 @@ def _native_input_calls(family, raw, *, exact_numbers=False):
                 except json.JSONDecodeError:
                     arguments[key] = value
         elif family == "gemma4":
-<<<<<<< HEAD
-            arguments, _ = _parse_gemma_value("{" + body)
-=======
-            arguments = {key: value for key, value in re.findall(r'(\w+):<\|"\|>(.*?)<\|"\|>', body, re.S)}
-            unquoted = re.sub(r'<\|"\|>.*?<\|"\|>', '', body, flags=re.S)
-            arguments.update({key: json.loads(value, parse_float=Decimal if exact_numbers else float)
-                              for key, value in re.findall(r'(\w+):(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?=[,}])', unquoted)})
-            arguments.update({key: None for key in re.findall(r'(\w+):null(?=[,}])', unquoted)})
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
+            arguments, _ = _parse_gemma_value("{" + body, exact_numbers=exact_numbers)
         elif family == "kimi_k2":
             arguments, _ = json.JSONDecoder(parse_float=Decimal if exact_numbers else float).raw_decode(body)
         else:

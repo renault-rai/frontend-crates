@@ -151,6 +151,8 @@ def k3_raw_tool(name, raw, index=1, *, close=True, spaced=False):
 
 
 def _gemma_value(value):
+    if isinstance(value, NumericLiteral):
+        return str(value)
     if isinstance(value, str):
         return f'<|"|>{value}<|"|>'
     if isinstance(value, dict):
@@ -161,7 +163,6 @@ def _gemma_value(value):
 
 
 def r_tool(fam, name, key, val, idx):
-<<<<<<< HEAD
     return r_tool_arguments(fam, name, {key: val}, idx)
 
 
@@ -175,32 +176,15 @@ def r_tool_arguments(fam, name, arguments, idx, raw_arguments=None):
         gap = " " if fam == "deepseek_v41" else ""
         envelope = "calls" if gap else "tool_calls"
         params = "".join(
-            f'<｜DSML｜{gap}parameter name="{key}" string="{str(isinstance(value, str)).lower()}">{raw[key]}</｜DSML｜{gap}parameter>'
+            f'<｜DSML｜{gap}parameter name="{key}" string="{str(isinstance(value, str) and not isinstance(value, NumericLiteral)).lower()}">{raw[key]}</｜DSML｜{gap}parameter>'
             for key, value in arguments.items()
         )
         return (f'<｜DSML｜{gap}{envelope}><｜DSML｜{gap}invoke name="{name}">'
                 f'{params}</｜DSML｜{gap}invoke></｜DSML｜{gap}{envelope}>')
     if fam == "gemma4":
-        native_values = {key: raw[key] if isinstance(value, str) else json.loads(raw[key])
+        native_values = {key: value if isinstance(value, NumericLiteral) else raw[key] if isinstance(value, str) else json.loads(raw[key])
                          for key, value in arguments.items()}
         return f"<|tool_call>call:{name}{_gemma_value(native_values)}<tool_call|>"
-=======
-    assert val is None or isinstance(val, str), "r_tool accepts strings and JSON null"
-    value = "null" if val is None else val
-    numeric = isinstance(val, NumericLiteral)
-    string_attr = "false" if val is None or numeric else "true"
-    if fam == "deepseek_v41":
-        return (f'<｜DSML｜ calls><｜DSML｜ invoke name="{name}">'
-                f'<｜DSML｜ parameter name="{key}" string="{string_attr}">{value}'
-                f'</｜DSML｜ parameter></｜DSML｜ invoke></｜DSML｜ calls>')
-    if fam == "deepseek_v4":
-        return (f"<｜DSML｜tool_calls><｜DSML｜invoke name=\"{name}\">"
-                f"<｜DSML｜parameter name=\"{key}\" string=\"{string_attr}\">{value}"
-                f"</｜DSML｜parameter></｜DSML｜invoke></｜DSML｜tool_calls>")
-    if fam == "gemma4":
-        argument = "null" if val is None else value if numeric else f'<|"|>{value}<|"|>'
-        return f"<|tool_call>call:{name}{{{key}:{argument}}}<tool_call|>"
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
     if fam == "qwen3":
         params = "\n".join(
             f"<parameter={key}>\n{value}\n</parameter>" for key, value in raw.items()
@@ -213,32 +197,21 @@ def r_tool_arguments(fam, name, arguments, idx, raw_arguments=None):
         )
         return f"<tool_call>{name}{params}</tool_call>"
     if fam == "muse_glimmer":
-<<<<<<< HEAD
         params = "".join(
             f'<atem:parameter name="{key}">{_atem_value(raw[key]) if isinstance(value, str) else raw[key]}</atem:parameter>\n'
             for key, value in arguments.items()
         )
-=======
-        argument = "null" if val is None else value if numeric else _atem_value(val)
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
         return (f"<|start|>assistant to={name}<|message|><atem:function_calls>\n"
                 f'<atem:invoke name="{name}">\n{params}'
                 f"</atem:invoke>\n</atem:function_calls><|eom|>")
     if fam == "kimi_k3":
-<<<<<<< HEAD
         types = {str: "string", type(None): "null", bool: "boolean", int: "integer",
                  float: "number", dict: "object", list: "array"}
-        params = "".join(k3_argument(key, types[type(value)], raw[key])
+        params = "".join(k3_argument(key, "number" if isinstance(value, NumericLiteral) else types[type(value)], raw[key])
                          for key, value in arguments.items())
         return k3_tools(k3_call(name, idx + 1, params))
     assert fam == "kimi_k2", fam
-    args = json.dumps(arguments, ensure_ascii=False)
-=======
-        argument_type = "null" if val is None else "number" if numeric else "string"
-        return k3_tools(k3_call(name, idx + 1, k3_argument(key, argument_type, value)))
-    args = ("{" + json.dumps(key) + ":" + value + "}" if numeric
-            else json.dumps({key: val}, ensure_ascii=False))
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
+    args = "{" + ",".join(json.dumps(key) + ":" + (str(value) if isinstance(value, NumericLiteral) else json.dumps(value, ensure_ascii=False)) for key, value in arguments.items()) + "}"
     return (f"<|tool_calls_section_begin|><|tool_call_begin|>functions.{name}:{idx}"
             f"<|tool_call_argument_begin|>{args}<|tool_call_end|><|tool_calls_section_end|>")
 
