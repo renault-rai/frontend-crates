@@ -23,6 +23,7 @@ import re
 import yaml
 
 import markers
+from numeric_cases import NUMERIC_VARIANTS, NUMERIC_DESCRIPTIONS, NumericLiteral, applicable, arguments_json
 from null_cases import MIXED_CASE_FAMILIES, NULL_VARIANTS, MIXED_LABELS_SCHEMA, MIXED_LABELS_ARGS, null_description
 
 # Families and their golden-spec filenames come from the ONE declaration in
@@ -160,6 +161,7 @@ def _gemma_value(value):
 
 
 def r_tool(fam, name, key, val, idx):
+<<<<<<< HEAD
     return r_tool_arguments(fam, name, {key: val}, idx)
 
 
@@ -182,6 +184,23 @@ def r_tool_arguments(fam, name, arguments, idx, raw_arguments=None):
         native_values = {key: raw[key] if isinstance(value, str) else json.loads(raw[key])
                          for key, value in arguments.items()}
         return f"<|tool_call>call:{name}{_gemma_value(native_values)}<tool_call|>"
+=======
+    assert val is None or isinstance(val, str), "r_tool accepts strings and JSON null"
+    value = "null" if val is None else val
+    numeric = isinstance(val, NumericLiteral)
+    string_attr = "false" if val is None or numeric else "true"
+    if fam == "deepseek_v41":
+        return (f'<｜DSML｜ calls><｜DSML｜ invoke name="{name}">'
+                f'<｜DSML｜ parameter name="{key}" string="{string_attr}">{value}'
+                f'</｜DSML｜ parameter></｜DSML｜ invoke></｜DSML｜ calls>')
+    if fam == "deepseek_v4":
+        return (f"<｜DSML｜tool_calls><｜DSML｜invoke name=\"{name}\">"
+                f"<｜DSML｜parameter name=\"{key}\" string=\"{string_attr}\">{value}"
+                f"</｜DSML｜parameter></｜DSML｜invoke></｜DSML｜tool_calls>")
+    if fam == "gemma4":
+        argument = "null" if val is None else value if numeric else f'<|"|>{value}<|"|>'
+        return f"<|tool_call>call:{name}{{{key}:{argument}}}<tool_call|>"
+>>>>>>> 1d56aefd (test: expand numeric conformance qualification)
     if fam == "qwen3":
         params = "\n".join(
             f"<parameter={key}>\n{value}\n</parameter>" for key, value in raw.items()
@@ -194,14 +213,19 @@ def r_tool_arguments(fam, name, arguments, idx, raw_arguments=None):
         )
         return f"<tool_call>{name}{params}</tool_call>"
     if fam == "muse_glimmer":
+<<<<<<< HEAD
         params = "".join(
             f'<atem:parameter name="{key}">{_atem_value(raw[key]) if isinstance(value, str) else raw[key]}</atem:parameter>\n'
             for key, value in arguments.items()
         )
+=======
+        argument = "null" if val is None else value if numeric else _atem_value(val)
+>>>>>>> 1d56aefd (test: expand numeric conformance qualification)
         return (f"<|start|>assistant to={name}<|message|><atem:function_calls>\n"
                 f'<atem:invoke name="{name}">\n{params}'
                 f"</atem:invoke>\n</atem:function_calls><|eom|>")
     if fam == "kimi_k3":
+<<<<<<< HEAD
         types = {str: "string", type(None): "null", bool: "boolean", int: "integer",
                  float: "number", dict: "object", list: "array"}
         params = "".join(k3_argument(key, types[type(value)], raw[key])
@@ -209,6 +233,12 @@ def r_tool_arguments(fam, name, arguments, idx, raw_arguments=None):
         return k3_tools(k3_call(name, idx + 1, params))
     assert fam == "kimi_k2", fam
     args = json.dumps(arguments, ensure_ascii=False)
+=======
+        argument_type = "null" if val is None else "number" if numeric else "string"
+        return k3_tools(k3_call(name, idx + 1, k3_argument(key, argument_type, value)))
+    args = ("{" + json.dumps(key) + ":" + value + "}" if numeric
+            else json.dumps({key: val}, ensure_ascii=False))
+>>>>>>> 1d56aefd (test: expand numeric conformance qualification)
     return (f"<|tool_calls_section_begin|><|tool_call_begin|>functions.{name}:{idx}"
             f"<|tool_call_argument_begin|>{args}<|tool_call_end|><|tool_calls_section_end|>")
 
@@ -2149,6 +2179,19 @@ for scenario, description, parameters, raw_arguments, arguments in (
     ))
 
 
+EDGE += [
+    (scenario, NUMERIC_DESCRIPTIONS[label.split(".")[0]] + f" Input {raw}; expected {expected}.",
+     ["I7"], [{"kind": "tool_call", "name": "get_weather", "arguments": arguments_json(expected)}],
+     {"starting_state": "None", "tool_output_mode": "Native", "named_tool": None},
+     {"finish_reason": "stop"},
+     OnlyFamilies({family: (r_tool(family, "get_weather", "value", NumericLiteral(raw), 0),
+                             VLLM_UNCAPTURABLE.get(family, M), M)
+                   for family in FAMILIES if applicable(family, label)}),
+     {family: [{"name": "get_weather", "parameters": {
+         "type": "object", "properties": {"value": schema}}}]
+      for family in FAMILIES if applicable(family, label)})
+    for scenario, label, schema, raw, expected in NUMERIC_VARIANTS
+]
 
 
 _NATIVE_QUOTED_CONTROL = {
