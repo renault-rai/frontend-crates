@@ -308,13 +308,8 @@
     {
       "path": "unified-history",
       "format": "unified-history",
-<<<<<<< HEAD
-      "sha256": "020e4f53385dbbb5327ba4a572e7ea5e1c73cd00810b7f4273281464233fd43f",
-      "size": 4788273
-=======
-      "sha256": "741269a26f3b2a28e15febbb36a81d3c20213dfd9902a51d55f1f08a25b8f0ec",
-      "size": 5127097
->>>>>>> 1d56aefd (test: expand numeric conformance qualification)
+      "sha256": "f27cc43a57e6caf0104b5c6322834650a760f02c98a1e6c220db64f59302c9ad",
+      "size": 5298192
     }
   ],
   "inactive_shards": []

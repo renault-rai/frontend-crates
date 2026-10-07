@@ -198,7 +198,7 @@ def r_tool_arguments(fam, name, arguments, idx, raw_arguments=None):
         return f"<tool_call>{name}{params}</tool_call>"
     if fam == "muse_glimmer":
         params = "".join(
-            f'<atem:parameter name="{key}">{_atem_value(raw[key]) if isinstance(value, str) else raw[key]}</atem:parameter>\n'
+            f'<atem:parameter name="{key}">{_atem_value(raw[key]) if isinstance(value, str) and not isinstance(value, NumericLiteral) else raw[key]}</atem:parameter>\n'
             for key, value in arguments.items()
         )
         return (f"<|start|>assistant to={name}<|message|><atem:function_calls>\n"
@@ -211,7 +211,9 @@ def r_tool_arguments(fam, name, arguments, idx, raw_arguments=None):
                          for key, value in arguments.items())
         return k3_tools(k3_call(name, idx + 1, params))
     assert fam == "kimi_k2", fam
-    args = "{" + ",".join(json.dumps(key) + ":" + (str(value) if isinstance(value, NumericLiteral) else json.dumps(value, ensure_ascii=False)) for key, value in arguments.items()) + "}"
+    args = ("{" + ",".join(json.dumps(key) + ":" + (str(value) if isinstance(value, NumericLiteral) else json.dumps(value, ensure_ascii=False)) for key, value in arguments.items()) + "}"
+            if any(isinstance(value, NumericLiteral) for value in arguments.values())
+            else json.dumps(arguments, ensure_ascii=False))
     return (f"<|tool_calls_section_begin|><|tool_call_begin|>functions.{name}:{idx}"
             f"<|tool_call_argument_begin|>{args}<|tool_call_end|><|tool_calls_section_end|>")
 
